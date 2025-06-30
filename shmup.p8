@@ -12,6 +12,7 @@ function _init()
 	}
 	cntr=0
 	
+	starspd=2
 	set_start()
 end
 
@@ -49,6 +50,7 @@ function start_game()
 	tlives=4
 	mbombs=3
 	bombs=3
+	starspd=2
 
 	ship={
 		x=60,
@@ -112,7 +114,7 @@ end
 
 function animate_stars()
 	for i=1,#stars do
-		local spd=2
+		local spd=starspd
 	
 		if stars[i].col==1 then
 			spd=0.5
@@ -269,6 +271,7 @@ function update_load()
 		animate_ship()
 		animate_flame()
 		animate_stars()
+		txtoffset+=1
 	else
 		start_game()
 	end
@@ -314,8 +317,8 @@ function draw_start()
 	for bs in all(big_stars) do
 		spr(26,bs.x,bs.y)
 	end
-	print("a little great shmup",24,40,12)
-	print("press ❎/🅾️ to start",24,80,blink())
+	print("a little big shmup",28,txtoffset,12)
+	print("press ❎/🅾️ to start",24,txtoffset*2,blink())
 end
 
 
@@ -328,6 +331,8 @@ end
 
 function draw_load()
 	cls(1)
+	print("a little big shmup",28,txtoffset,12)
+	print("press ❎/🅾️ to start",24,txtoffset+40,blink())
 	rectfill(0,0,128,space,0)
 	starfield()
 	spr(ship.s,ship.x,ship.y)
@@ -391,12 +396,14 @@ end
 function set_start()
 	stars={}
 	planets={}
+	txtoffset=40
 	scolors={1,13,7}
 	gen_stars(120)
 	big_stars=rnd_spr_pos(5)
 end
 
 function set_load()
+	starspd=3
 	space=0
 	shipspr=2
 	shipx=60
