@@ -7,11 +7,12 @@ function _init()
 	mode="start"	
 	blinkt=0
 	en_tps={
-		{s=32,spd=2},
-		{s=48,spd=3}
+		{s=32,spd=2,hp=1},
+		{s=48,spd=3,hp=2}
 	}
 	cntr=0
 	
+	invnrbl=0
 	starspd=2
 	set_start()
 end
@@ -45,12 +46,13 @@ function _draw()
 end
 
 function start_game()
-	score=30000
+	score=0
 	lives=4
 	tlives=4
 	mbombs=3
 	bombs=3
 	starspd=2
+	invnrbl=0
 
 	ship={
 		x=60,
@@ -62,14 +64,12 @@ function start_game()
 
 	flmspr=17
 	
-	bullets={{x=-1,y=-1,s=1,spd=5}}
-	enemies={
-		{x=64,y=8,s=32,ini_s=32,spd=2,t=1}
-	}
-	
-		
+	bullets={}
+	enemies={}
 	muzzle=0
-	
+	xplsn=0
+	xplsns={}
+		
 	planets={}
 	mode="game"
 end
@@ -78,6 +78,10 @@ end
 function animate_ship()
 	ship.x+=ship.sx
 	ship.y+=ship.sy
+	
+	if invnrbl>0 and invnrbl%2==0 then
+		ship.s=0
+	end
 end
 
 function animate_bullets()
@@ -107,9 +111,12 @@ function animate_flame()
 end
 
 function animate_muzzle()
-	if muzzle>0 then
-		muzzle-=1
-	end
+	if (muzzle>0)	muzzle-=1
+end
+
+function animate_xplsn()
+	if (xplsn>0) xplsn-=1
+	if (xplsn<=0) xplsns={}
 end
 
 function animate_stars()
@@ -148,11 +155,16 @@ end
 
 function amimate_enemies()
 	for e in all(enemies) do
+		if (e.hp<=0) then 
+			del(enemies,e)
+			score+=1
+		end
+		
 		e.y+=e.spd
 		
-		if e.x>ship.x then
+		if flr(e.x)>ship.x then
 			e.x-=0.7
-		elseif e.x<ship.x then
+		elseif flr(e.x)<ship.x then
 			e.x+=0.7
 		end
 
@@ -218,30 +230,24 @@ function update_game()
 	end
 
 	animate_ship()	
+	check_edges()
 	animate_bullets()
+	animate_xplsn()
 	animate_flame()
 	animate_muzzle()
 	amimate_enemies()
+	chk_ene_col()
 	animate_stars()
 	animate_planets()
 	
-	--check for edges
- if ship.x>120 then
- 	ship.x=120
- 	lives-=1
- end
- if ship.x<0 then
- 	ship.x=0
- 	lives-=1
- end
- if ship.y>120 then
- 	ship.y=120
- end
- if ship.y<8 then
- 	ship.y=8
- end
+	if invnrbl>0 then
+		invnrbl-=1
+	end
  
- if (lives<=0) mode="over" 
+ if (lives<=0) then
+ 	mode="over" 
+		return
+	end
 	
 	if cntr%90==0 then
 		gen_ene(2)
@@ -284,7 +290,8 @@ function draw_game()
 	starfield()
 	draw_spr(bullets)
 	draw_spr(enemies)
-	
+	draw_xplsns()
+		
 	spr(ship.s,ship.x,ship.y)
 	spr(flmspr,ship.x,ship.y+8)
 	
@@ -297,7 +304,7 @@ function draw_game()
 	print("score:"..score,42,0,6)
 	
 	--draw lives
-	for i=0,tlives-1 do
+	for i=1,tlives do
 		if i<=lives then
 			spr(11,i*8)
 		else
@@ -352,6 +359,14 @@ function starfield()
 		end
 	end	
 end
+
+function draw_xplsns()
+	for ex in all(xplsns) do
+		circfill(ex.x,ex.y,xplsn,6)
+		circfill(ex.x+1,ex.y+1,xplsn-1,9)
+		circfill(ex.x+2,ex.y+2,xplsn-2,10)
+	end
+end
 -->8
 --tools
 function gen_stars(n)
@@ -382,14 +397,71 @@ function draw_spr(t)
 end
 
 function gen_ene(t)
-	--local aux=en_tps[t]
 	add(enemies,{
 		x=rnd(120),
 		y=0,
 		spd=en_tps[t].spd,
 		s=en_tps[t].s,
-		ini_s=en_tps[t].s
+		ini_s=en_tps[t].s,
+		hp=en_tps[t].hp
 	})
+end
+
+function check_edges()
+	if ship.x>120 then
+ 	ship.x=120
+ end
+ if ship.x<0 then
+ 	ship.x=0
+ end
+ if ship.y>120 then
+ 	ship.y=120
+ end
+ if ship.y<8 then
+ 	ship.y=8
+ end
+end
+
+function col(a,b)
+	local a_l=a.x
+	local a_r=a.x+7
+	local a_t=a.y
+	local a_b=a.y+7
+
+	local b_l=b.x
+	local b_r=b.x+7
+	local b_t=b.y
+	local b_b=b.y+7
+	
+	if (a_t>b_b) then return false end
+	if (b_t>a_b) then return false end
+	if (a_l>b_r) then return false end
+	if (b_l>a_r) then return false end
+	
+	return true
+end
+
+function chk_ene_col()
+	for e in all(enemies) do
+		for b in all(bullets) do
+			if col(b,e) then
+				xplsn=5
+				add(xplsns,{x=b.x,y=b.y})
+				sfx(2)
+				del(bullets,b)
+				e.hp-=1
+			end
+		end
+		
+		if col(e,ship) then 
+			if invnrbl<=0 then
+				sfx(2)
+				lives-=1
+				invnrbl=100
+				del(enemies,e)
+			end
+		end
+	end
 end
 -->8
 --setups
@@ -457,3 +529,4 @@ __map__
 __sfx__
 000000003b0503705034050310502d0502a0502705024050210501f0501d0501b0501905017050150501405012050100500f0500e0500d0500000000000000000000000000000000000000000000000000000000
 0001000038650306502d650296502665023650226501e650196501a65016650126500e6500e6500b6500a65006650046500265000650000000000000000000000000000000000000000000000000000000000000
+00020000316502d6502965024650216501d6501965017650156501365013650126501265012650116501165000000000000000000000000000000000000000000000000000000000000000000000000000000000
