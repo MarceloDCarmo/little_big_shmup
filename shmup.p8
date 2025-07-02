@@ -68,8 +68,8 @@ function start_game()
 	bullets={}
 	enemies={}
 	muzzle=0
-	xplsn=0
 	xplsns={}
+	prtcls={}
 		
 	planets={}
 	mode="game"
@@ -116,8 +116,10 @@ function animate_muzzle()
 end
 
 function animate_xplsn()
-	if (xplsn>0) xplsn-=1
-	if (xplsn<=0) xplsns={}
+	for ex in all(xplsns) do
+		if (ex.r>0) ex.r-=1
+		if (ex.r<=0) del(xplsns,ex)
+	end
 end
 
 function animate_stars()
@@ -184,6 +186,21 @@ function blink()
 	
 	return banim[blinkt]
 end
+
+function animate_prtcls()
+	for p in all(prtcls) do
+		p.x+=p.sx
+		p.y+=p.sy
+		p.age+=1
+		p.sx*=0.85
+		p.sy*=0.75
+		
+		if p.age>p.mxage then
+			p.size-=0.5
+			if (p.size<0) del(prtcls,p)
+		end
+	end
+end
 -->8
 --update
 
@@ -231,6 +248,7 @@ function update_game()
 	check_edges()
 	animate_bullets()
 	animate_xplsn()
+	animate_prtcls()
 	animate_flame()
 	animate_muzzle()
 	amimate_enemies()
@@ -289,6 +307,7 @@ function draw_game()
 	draw_spr(bullets)
 	draw_spr(enemies)
 	draw_xplsns()
+	draw_prtcls()
 		
 	spr(ship.s,ship.x,ship.y)
 	spr(flmspr,ship.x,ship.y+8)
@@ -360,9 +379,23 @@ end
 
 function draw_xplsns()
 	for ex in all(xplsns) do
-		circfill(ex.x,ex.y,xplsn,6)
-		circfill(ex.x+1,ex.y+1,xplsn-1,9)
-		circfill(ex.x+2,ex.y+2,xplsn-2,10)
+		circfill(ex.x,ex.y,ex.r,6)
+		circfill(ex.x+1,ex.y+1,ex.r-1,9)
+		circfill(ex.x+2,ex.y+2,ex.r-2,10)
+	end
+end
+
+
+function draw_prtcls()
+	for p in all(prtcls) do
+		local pc=7
+		if (p.age>5) pc=9
+		if (p.age>7)	pc=10
+		if (p.age>10) pc=8
+		if (p.age>12) pc=2
+		if (p.age>15) pc=5
+		
+		circfill(p.x,p.y,p.size,pc)
 	end
 end
 -->8
@@ -443,14 +476,17 @@ function chk_ene_col()
 	for e in all(enemies) do
 		for b in all(bullets) do
 			if col(b,e) then
-				xplsn=5
-				add(xplsns,{x=b.x,y=b.y})
 				sfx(2)
 				del(bullets,b)
 				e.hp-=1
 				if e.hp<=0 then
+					explode(e.x,e.y)
 				 del(enemies,e) 
 					score+=1
+					if score%50==0 and lives<tlives then
+						sfx(3)
+						lives+=1
+					end
 				end
 			end
 		end
@@ -464,6 +500,22 @@ function chk_ene_col()
 				del(enemies,e)
 			end
 		end
+	end
+end
+
+function explode(x,y)
+	--add(xplsns,{x=x,y=y,r=r})	
+	local spdadj=6
+	for i=1,20 do
+		add(prtcls,{
+			x=x,
+			y=y,
+			sx=(rnd()-0.5)*spdadj,
+			sy=(rnd()-0.5)*spdadj,
+			age=rnd(3),
+			mxage=10+rnd(10),
+			size=1+rnd(4)
+		})
 	end
 end
 -->8
@@ -533,3 +585,4 @@ __sfx__
 000000003b0503705034050310502d0502a0502705024050210501f0501d0501b0501905017050150501405012050100500f0500e0500d0500000000000000000000000000000000000000000000000000000000
 0001000038250302502d250292502625023250222501e250192501a25016250122500e2500e2500b2500a25006250042500225000250002000020000200002000020000200002000020000200002000020000200
 00020000316502d6502965024650216501d6501965017650156501365013650126501265012650116501165000600006000060000600006000060000600006000060000600006000060000600006000060000600
+00030000207501a7501775017750197501b7501d7501f75022750277502d75033750397503f700107001170014700177001a7001e70025700317003b7003b7003b7003b7003b7003b7003b700007000070000700
