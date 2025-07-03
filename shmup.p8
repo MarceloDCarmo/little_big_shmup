@@ -7,20 +7,24 @@ function _init()
 	mode="start"	
 	blinkt=0
 	en_tps={
-		{s=32,spd=2,hp=1},
-		{s=48,spd=3,hp=2}
+		{s=32,spd=2,hp=1,mcol=3},
+		{s=48,spd=3,hp=2,mcol=3}
 	}
 	cntr=0
-	
 	invnrbl=0
 	starspd=2
+	xplsn_pal={
+		{7,9,10,8,2,5},--enemies
+		{7,6,12,13,1,5}--ship
+	}
 	set_start()
 end
 
 function _update()
 	blinkt+=1
 	
-	if mode=="game" then
+	if mode=="game" or
+		mode=="dead" then
 		update_game()
 	elseif mode=="start" then
 		update_start()
@@ -32,7 +36,8 @@ function _update()
 end	
 
 function _draw()
-	if mode=="game" then
+	if mode=="game" or
+		mode=="dead" then
 		draw_game()
 	elseif mode=="start" then
 		draw_start()
@@ -54,6 +59,8 @@ function start_game()
 	starspd=2
 	invnrbl=0
 	bullt=0
+	endcounter=0
+	t=0
 	
 	ship={
 		x=60,
@@ -159,6 +166,7 @@ end
 function amimate_enemies()
 	for e in all(enemies) do	
 		e.y+=e.spd
+		if (e.flsh>0) e.flsh-=1
 		
 		if flr(e.x)>ship.x then
 			e.x-=0.7
@@ -208,42 +216,7 @@ function update_game()
 	cntr+=1
 	if (cntr>=1800) cntr=0
 	
-		--controls
-	ship.s=2
-	ship.sx=0
-	ship.sy=0
-	if btn(⬆️) then
-		ship.sy=-2
-	end
-	if btn(⬇️) then
-		ship.sy=2
-	end
-	if btn(⬅️) then
-		ship.s=1
-		ship.sx=-2
-	end
-	if btn(➡️) then
-		ship.s=3
-		ship.sx=2
-	end
-	if btn(❎) and bullt<=0 then
-		bullt=4
-		muzzle=4
-		sfx(0)
-		add(bullets,
-			{x=ship.x,y=ship.y-4,s=5,spd=5}
-		)
-	end
-	bullt-=1
-	if btnp(🅾️) and bombs>0 then
-		muzzle=4
-		sfx(1)
-		add(bullets,
-			{x=ship.x,y=ship.y-4,s=12,spd=3}
-		)
-		bombs-=1
-	end
-
+	if (mode=="game") read_controls()
 	animate_ship()	
 	check_edges()
 	animate_bullets()
@@ -261,7 +234,14 @@ function update_game()
 	end
  
  if (lives<=0) then
- 	mode="over" 
+ 	mode="dead"
+ 	ship.s=0
+ 	flmspr=0
+ 	if endcounter<=0 then
+	 	mode="over" 
+		end
+		
+		endcounter-=1
 		return
 	end
 	
@@ -296,6 +276,43 @@ function update_load()
 		txtoffset+=1
 	else
 		start_game()
+	end
+end
+
+function read_controls()
+	ship.s=2
+	ship.sx=0
+	ship.sy=0
+	if btn(⬆️) then
+		ship.sy=-2
+	end
+	if btn(⬇️) then
+		ship.sy=2
+	end
+	if btn(⬅️) then
+		ship.s=1
+		ship.sx=-2
+	end
+	if btn(➡️) then
+		ship.s=3
+		ship.sx=2
+	end
+	if btn(❎) and bullt<=0 then
+		bullt=4
+		muzzle=4
+		sfx(0)
+		add(bullets,
+			{x=ship.x,y=ship.y-4,s=5,spd=5}
+		)
+	end
+	bullt-=1
+	if btnp(🅾️) and bombs>0 then
+		muzzle=4
+		sfx(1)
+		add(bullets,
+			{x=ship.x,y=ship.y-4,s=12,spd=3}
+		)
+		bombs-=1
 	end
 end
 -->8
@@ -388,14 +405,27 @@ end
 
 function draw_prtcls()
 	for p in all(prtcls) do
-		local pc=7
-		if (p.age>5) pc=9
-		if (p.age>7)	pc=10
-		if (p.age>10) pc=8
-		if (p.age>12) pc=2
-		if (p.age>15) pc=5
+		--local cols={7,9,10,8,2,5}
+		local ages={2,4,6,8,10,12}
+		local pcol=1
 		
-		circfill(p.x,p.y,p.size,pc)
+		for i=1,#ages do
+			if (p.age>ages[i]) pcol=p.x_pal[i]
+		end
+		
+		circfill(p.x,p.y,p.size,pcol)
+	end
+end
+
+function draw_spr(t)
+	if t then
+		for i in all(t) do
+			if (i.flsh!=nil and i.flsh>0) then
+				pal(i.mcol,7)
+			end
+			spr(i.s,i.x,i.y)
+			pal()
+		end
 	end
 end
 -->8
@@ -419,14 +449,6 @@ function rnd_spr_pos(n)
 	return coord
 end
 
-function draw_spr(t)
-	if t then
-		for i in all(t) do
-			spr(i.s,i.x,i.y)
-		end
-	end
-end
-
 function gen_ene(t)
 	add(enemies,{
 		x=rnd(120),
@@ -434,7 +456,9 @@ function gen_ene(t)
 		spd=en_tps[t].spd,
 		s=en_tps[t].s,
 		ini_s=en_tps[t].s,
-		hp=en_tps[t].hp
+		hp=en_tps[t].hp,
+		mcol=en_tps[t].mcol,
+		flsh=0
 	})
 end
 
@@ -476,11 +500,12 @@ function chk_ene_col()
 	for e in all(enemies) do
 		for b in all(bullets) do
 			if col(b,e) then
-				sfx(2)
 				del(bullets,b)
+				e.flsh=30
 				e.hp-=1
 				if e.hp<=0 then
-					explode(e.x,e.y)
+					explode(e.x,e.y,xplsn_pal[1])
+					sfx(2)
 				 del(enemies,e) 
 					score+=1
 					if score%50==0 and lives<tlives then
@@ -498,13 +523,27 @@ function chk_ene_col()
 				lives-=1
 				invnrbl=100
 				del(enemies,e)
+				if lives<=0 then
+					explode(ship.x+4,ship.y+4,xplsn_pal[2])
+					endcounter=45
+				end
 			end
 		end
 	end
 end
 
-function explode(x,y)
-	--add(xplsns,{x=x,y=y,r=r})	
+function explode(x,y,x_pal)
+	add(prtcls,{
+		x=x,
+		y=y,
+		sx=0,
+		sy=0,
+		age=0,
+		mxage=2,
+		size=10,
+		x_pal=x_pal
+	})
+	
 	local spdadj=6
 	for i=1,20 do
 		add(prtcls,{
@@ -514,7 +553,8 @@ function explode(x,y)
 			sy=(rnd()-0.5)*spdadj,
 			age=rnd(3),
 			mxage=10+rnd(10),
-			size=1+rnd(4)
+			size=1+rnd(3),
+			x_pal=x_pal
 		})
 	end
 end
@@ -538,6 +578,7 @@ function set_load()
 	shipsx=0
 	shipsy=-1
 	flmspr=17
+	invnrbl=0
 	ship={
 		x=60,
 		y=128,
