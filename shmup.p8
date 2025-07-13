@@ -458,13 +458,13 @@ function draw_prtcls()
 		local ages={2,4,6,8,10,12}
 		local pcol=1
 		
-		for i=1,#ages do
-			if (p.age>ages[i]) pcol=p.x_pal[i]
-		end
-		
 		if p.spark then
-			pset(p.x,p.y,7)
-		else	
+			pset(p.x,p.y,p.col)
+		else
+			for i=1,#ages do
+				if (p.age>ages[i]) pcol=p.x_pal[i]
+			end
+		
 			circfill(p.x,p.y,p.size,pcol)
 		end
 	end
@@ -472,7 +472,7 @@ end
 
 function draw_shwaves()
 	for s in all(shwaves) do
-		circ(s.x,s.y,s.r,5)
+		circ(s.x,s.y,s.r,s.col)
 	end
 end
 -->8
@@ -548,6 +548,7 @@ function chk_ene_col()
 		for b in all(bullets) do
 			if col(b,e) then
 				del(bullets,b)
+				gen_sparks(b.x+4,b.y+4,10,10,5)
 				e.flsh=5
 				e.hp-=1
 				if e.hp<=0 then
@@ -581,7 +582,7 @@ function chk_ene_col()
 end
 
 function explode(x,y,x_pal)
-	gen_shwave(x,y,x_pal)
+	gen_shwave(x,y,19,5)
 	add(prtcls,{
 		x=x,
 		y=y,
@@ -606,28 +607,33 @@ function explode(x,y,x_pal)
 			x_pal=x_pal
 		})
 	end
-	for i=1,20 do
-		add(prtcls,{
-			x=x,
-			y=y,
-			sx=(rnd()-0.5)*spdadj,
-			sy=(rnd()-0.5)*spdadj,
-			age=rnd(3),
-			mxage=10+rnd(10),
-			size=1+rnd(3),
-			x_pal=x_pal,
-			spark=true
-		})
-	end
+	gen_sparks(x,y,20,7,10)
 end
 
-function gen_shwave(x,y)
+function gen_shwave(x,y,tr,col)
 	add(shwaves,{
 		x=x,
 		y=y,
 		r=0,
-		tr=20
+		tr=tr,
+		col=col
 	})
+end
+
+function gen_sparks(x,y,n,col,spd)
+		for i=1,n do
+		add(prtcls,{
+			x=x,
+			y=y,
+			sx=(rnd()-0.5)*spd,
+			sy=(rnd()-0.5)*spd,
+			age=rnd(3),
+			mxage=10+rnd(10),
+			size=1,
+			spark=true,
+			col=col
+		})
+	end
 end
 __gfx__
 00000000000220000002200000022000000990000009900000099000000990000009900000099000088088000880880000094000000940000009400000094000
