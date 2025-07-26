@@ -21,15 +21,17 @@ function _init()
 end
 
 function _update()
-	blinkt+=1
+	blinkt+=0.25
 	
 	if mode=="game" or
 		mode=="dead" then
 		update_game()
-	elseif mode=="start" then
-		update_start()
 	elseif mode=="load" then
 		update_load()
+	elseif mode=="waveinfo" then
+		update_waveinfo()
+	elseif mode=="start" then
+		update_start()
 	elseif mode=="over" then
 		update_over()
 	end
@@ -39,10 +41,12 @@ function _draw()
 	if mode=="game" or
 		mode=="dead" then
 		draw_game()
-	elseif mode=="start" then
-		draw_start()
 	elseif mode=="load" then
 		draw_load()
+	elseif mode=="waveinfo" then
+		draw_waveinfo()
+	elseif mode=="start" then
+		draw_start()
 	elseif mode=="over" then
 		draw_over()
 	end
@@ -52,6 +56,8 @@ end
 
 function start_game()
 	score=0
+	wave=1
+	wave_time=60
 	lives=4
 	tlives=4
 	mbombs=3
@@ -80,7 +86,7 @@ function start_game()
 	shwaves={}
 	
 	planets={}
-	mode="game"
+	mode="waveinfo"
 end
 
 --setups
@@ -222,7 +228,7 @@ function blink()
 		blinkt=1
 	end
 	
-	return banim[blinkt]
+	return banim[ceil(blinkt)]
 end
 
 function animate_prtcls()
@@ -250,20 +256,32 @@ end
 --update
 
 function update_game()
-	cntr+=1
 	if (cntr>=1800) cntr=0
 	
-	if (mode=="game") read_controls()
+	if mode=="game" 
+		or mode=="waveinfo" then
+	 read_controls()
+	end
+	
+	if mode=="game" then
+		cntr+=1
+		if cntr%90==0 then
+			gen_ene(2)
+		elseif cntr%20==0 then
+			gen_ene(1)
+		end
+	end
+		
 	animate_ship()	
 	check_edges()
 	animate_bullets()
+	chk_ene_col()
+	amimate_enemies()
 	animate_xplsn()
 	animate_prtcls()
 	animate_shwaves()
 	animate_flame()
 	animate_muzzle()
-	amimate_enemies()
-	chk_ene_col()
 	animate_stars()
 	animate_planets()
 	
@@ -281,12 +299,6 @@ function update_game()
 		
 		endcounter-=1
 		return
-	end
-	
-	if cntr%90==0 then
-		gen_ene(2)
-	elseif cntr%20==0 then
-		gen_ene(1)
 	end
 end
 
@@ -353,6 +365,16 @@ function read_controls()
 		bombs-=1
 	end
 end
+
+function update_waveinfo()
+	update_game()
+	t+=1
+	
+	if t>=wave_time then
+		t=0
+		mode="game"
+	end
+end
 -->8
 --draw
 function draw_game()
@@ -373,8 +395,7 @@ function draw_game()
 		circfill(ship.x+4,ship.y-1,muzzle,7)
 	end
 	
-	rectfill(0,0,128,7,0)
-	print("score:"..score,42,0,6)
+	format_score()
 	
 	--draw lives
 	for i=1,tlives do
@@ -474,6 +495,21 @@ function draw_shwaves()
 	for s in all(shwaves) do
 		circ(s.x,s.y,s.r,s.col)
 	end
+end
+
+function format_score()
+	rectfill(0,0,128,7,0)
+	local length=#tostr(score)
+	local aux="00000"
+	
+	print("score:"..sub(aux,length,4)..score,43,0,6)
+end
+
+function draw_waveinfo()
+	draw_game()
+	print("wave "..wave,53,40,blink())
+	
+	
 end
 -->8
 --tools
@@ -582,7 +618,7 @@ function chk_ene_col()
 end
 
 function explode(x,y,x_pal)
-	gen_shwave(x,y,19,5)
+	gen_shwave(x,y,19,6)
 	add(prtcls,{
 		x=x,
 		y=y,
