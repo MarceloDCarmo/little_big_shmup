@@ -122,6 +122,9 @@ function set_load()
 end
 
 function set_win()
+	xplsns={}
+	prtcls={}
+	shwaves={}
 	prtcls_time=45
 end
 -->8
