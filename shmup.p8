@@ -315,9 +315,16 @@ end
 
 function update_start()
 	animate_stars()
-	if btnp(❎) or btnp(🅾️) then
-	 set_load()
-	 mode="load"
+	
+	if not btn(❎) and not btn(🅾️) then
+		btnreleased=true
+	end
+	
+	if btnreleased then
+		if btnp(❎) or btnp(🅾️) then
+		 set_load()
+		 mode="load"
+		end
 	end
 end
 
