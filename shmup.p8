@@ -35,7 +35,7 @@ function _update()
 	elseif mode=="over" then
 		update_over()
 	elseif mode=="win" then
-		update_over()
+		update_win()
 	end
 end	
 
@@ -119,6 +119,10 @@ function set_load()
 		sy=-1,
 		s=2
 	}
+end
+
+function set_win()
+	prtcls_time=45
 end
 -->8
 --animation
@@ -252,7 +256,7 @@ end
 
 function animate_shwaves()
 	for s in all(shwaves) do
-		s.r+=4
+		s.r+=s.spd
 		if (s.r>s.tr) del(shwaves,s)
 	end
 end
@@ -325,6 +329,24 @@ function update_over()
 		 mode="start"
 		end
 	end
+end
+
+function update_win()
+	t+=1
+	if t>=prtcls_time then
+		local x=mid(16,flr(rnd(128)),112)
+		local y=mid(16,flr(rnd(128)),112)
+		gen_shwave(x,y,6,7,0.75)
+		gen_shwave(x,y,9,7,1.25)
+		gen_shwave(x,y,12,7,1.75)
+		gen_sparks(x,y,40,7,15)
+		sfx(5)
+		t=0
+	end
+	
+	animate_prtcls()
+	animate_shwaves()
+	update_over()
 end
 
 function update_load()
@@ -442,6 +464,8 @@ end
 
 function draw_win()
 	cls(11)
+	draw_prtcls()
+	draw_shwaves()
 	print("you",57,40,10)
 	print("won!",56,48,10)
 	print("press ❎/🅾️ to continue",18,80,blink())
@@ -525,8 +549,6 @@ end
 function draw_waveinfo()
 	draw_game()
 	print("wave "..wave,53,40,blink())
-	
-	
 end
 -->8
 --tools
@@ -584,7 +606,7 @@ function col(a,b)
 end
 
 function explode(x,y,x_pal)
-	gen_shwave(x,y,19,6)
+	gen_shwave(x,y,19,6,4)
 	add(prtcls,{
 		x=x,
 		y=y,
@@ -612,13 +634,14 @@ function explode(x,y,x_pal)
 	gen_sparks(x,y,20,7,10)
 end
 
-function gen_shwave(x,y,tr,col)
+function gen_shwave(x,y,tr,col,spd)
 	add(shwaves,{
 		x=x,
 		y=y,
 		r=0,
 		tr=tr,
-		col=col
+		col=col,
+		spd=spd
 	})
 end
 
@@ -700,7 +723,8 @@ end
 
 function nxt_wave()
 	wave+=1
-	if wave>5 then
+	if wave>0 then
+		set_win()
 		mode="win"
 		wave=0
  else
@@ -878,3 +902,4 @@ __sfx__
 00020000316502d6502965024650216501d6501965017650156501365013650126501265012650116501165000600006000060000600006000060000600006000060000600006000060000600006000060000600
 00030000207501a7501775017750197501b7501d7501f75022750277502d75033750397503f700107001170014700177001a7001e70025700317003b7003b7003b7003b7003b7003b7003b700007000070000700
 000300002e1502a15025150201501d1501d1501d1501c1501e1502115025150271502715025150211501f1501e1501e1501f15020150211502315024150221501d1501815015150121500e1500c1500a15008150
+000500002c6502565022630206301c6201a62017610196102c6002f60032600366003b6002d6002060021600246002b6002d60000600006000060000600006000060000600006000060000600006000060000600
