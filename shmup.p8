@@ -34,6 +34,8 @@ function _update()
 		update_start()
 	elseif mode=="over" then
 		update_over()
+	elseif mode=="win" then
+		update_over()
 	end
 end	
 
@@ -49,14 +51,16 @@ function _draw()
 		draw_start()
 	elseif mode=="over" then
 		draw_over()
+	elseif mode=="win" then
+		draw_win()
 	end
 	
-	if (debug) print(debug)
+	if (debug) print(debug,0,0)
 end
 
 function start_game()
 	score=0
-	wave=1
+	wave=0
 	wave_time=60
 	lives=4
 	tlives=4
@@ -85,8 +89,7 @@ function start_game()
 	prtcls={}
 	shwaves={}
 	
-	planets={}
-	mode="waveinfo"
+	nxt_wave()
 end
 
 --setups
@@ -217,6 +220,7 @@ function amimate_enemies()
 		
 		if e.y>128 then
 			del(enemies,e)
+			gen_ene(e.t)
 		end
 	end
 end
@@ -263,14 +267,14 @@ function update_game()
 	 read_controls()
 	end
 	
-	if mode=="game" then
+--[[	if mode=="game" then
 		cntr+=1
 		if cntr%90==0 then
 			gen_ene(2)
 		elseif cntr%20==0 then
 			gen_ene(1)
 		end
-	end
+	end]]
 		
 	animate_ship()	
 	check_edges()
@@ -310,10 +314,16 @@ function update_start()
 	end
 end
 
-function update_over()
-	if btnp(❎) or btnp(🅾️) then
-		set_start()
-	 mode="start"
+function update_over()	
+	if not btn(❎) and not btn(🅾️) then
+		btnreleased=true
+	end
+	
+	if btnreleased then
+		if btnp(❎) or btnp(🅾️) then
+			set_start()
+		 mode="start"
+		end
 	end
 end
 
@@ -373,6 +383,7 @@ function update_waveinfo()
 	if t>=wave_time then
 		t=0
 		mode="game"
+		gen_wave()
 	end
 end
 -->8
@@ -422,11 +433,17 @@ function draw_start()
 	print("press ❎/🅾️ to start",24,txtoffset*2,blink())
 end
 
-
 function draw_over()
 	cls(2)
 	print("game",56,40,8)
 	print("over",56,48,8)
+	print("press ❎/🅾️ to continue",18,80,blink())
+end
+
+function draw_win()
+	cls(11)
+	print("you",57,40,10)
+	print("won!",56,48,10)
 	print("press ❎/🅾️ to continue",18,80,blink())
 end
 
@@ -532,19 +549,6 @@ function rnd_spr_pos(n)
 	return coord
 end
 
-function gen_ene(t)
-	add(enemies,{
-		x=rnd(120),
-		y=0,
-		spd=en_tps[t].spd,
-		s=en_tps[t].s,
-		ini_s=en_tps[t].s,
-		hp=en_tps[t].hp,
-		mcol=en_tps[t].mcol,
-		flsh=0
-	})
-end
-
 function check_edges()
 	if ship.x>120 then
  	ship.x=120
@@ -577,44 +581,6 @@ function col(a,b)
 	if (b_l>a_r) then return false end
 	
 	return true
-end
-
-function chk_ene_col()
-	for e in all(enemies) do
-		for b in all(bullets) do
-			if col(b,e) then
-				del(bullets,b)
-				gen_sparks(b.x+4,b.y+4,10,10,5)
-				e.flsh=5
-				e.hp-=1
-				if e.hp<=0 then
-					explode(e.x,e.y,xplsn_pal[1])
-					sfx(2)
-				 del(enemies,e) 
-					score+=1
-					if score%50==0 and lives<tlives then
-						sfx(3)
-						lives+=1
-					end
-				end
-			end
-		end
-		
-		 
-		if invnrbl<=0 then
-			if col(e,ship) then
-				sfx(1)
-				lives-=1
-				invnrbl=100
-				del(enemies,e)
-				if lives<=0 then
-					explode(ship.x+4,ship.y+4,xplsn_pal[2])
-					sfx(4)
-					endcounter=45
-				end
-			end
-		end
-	end
 end
 
 function explode(x,y,x_pal)
@@ -669,6 +635,76 @@ function gen_sparks(x,y,n,col,spd)
 			spark=true,
 			col=col
 		})
+	end
+end
+-->8
+--waves and enemies
+function gen_ene(t)
+	add(enemies,{
+		x=rnd(120),
+		y=0,
+		spd=en_tps[t].spd,
+		s=en_tps[t].s,
+		ini_s=en_tps[t].s,
+		hp=en_tps[t].hp,
+		mcol=en_tps[t].mcol,
+		flsh=0,
+		t=t
+	})
+end
+
+function chk_ene_col()
+	for e in all(enemies) do
+		for b in all(bullets) do
+			if col(b,e) then
+				del(bullets,b)
+				gen_sparks(b.x+4,b.y+4,10,10,5)
+				e.flsh=5
+				e.hp-=1
+				if e.hp<=0 then
+					explode(e.x,e.y,xplsn_pal[1])
+					sfx(2)
+				 del(enemies,e) 
+					score+=1
+					if score%50==0 and lives<tlives then
+						sfx(3)
+						lives+=1
+					end
+				end
+			end
+		end
+		
+		 
+		if invnrbl<=0 then
+			if col(e,ship) then
+				sfx(1)
+				lives-=1
+				invnrbl=100
+				del(enemies,e)
+				if lives<=0 then
+					explode(ship.x+4,ship.y+4,xplsn_pal[2])
+					sfx(4)
+					endcounter=45
+				end
+			end
+		end
+		if #enemies<=0 then
+			nxt_wave()
+		end
+	end
+end
+
+function gen_wave()
+	gen_ene(1)
+end
+
+function nxt_wave()
+	wave+=1
+	if wave>5 then
+		mode="win"
+		wave=0
+ else
+		mode="waveinfo"
 	end
 end
 __gfx__
