@@ -723,7 +723,7 @@ end
 
 function nxt_wave()
 	wave+=1
-	if wave>0 then
+	if wave>5 then
 		set_win()
 		mode="win"
 		wave=0
