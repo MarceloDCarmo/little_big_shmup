@@ -6,26 +6,7 @@ function _init()
 	cls(0)
 	mode="start"	
 	blinkt=0
-	en_typ={
-		{s=32,ns=8,spd=2,hp=1,mcol=3,
-			ani={32,33,34,35,36,37,38,39}
-		},
-		{s=84,ns=2,spd=1,hp=2,mcol=3,
-			ani={84,85}
-		},
-		{s=101,ns=4,spd=2,hp=2,mcol=3,
-			ani={101,102,103,104}
-		},
-		{s=76,ns=4,spd=2,hp=2,mcol=3,
-			ani={76,77,78,79}
-		},
-		{s=48,ns=8,spd=3,hp=2,mcol=3,
-			ani={48,49,50,51,52,53,54,55}
-		},
-		{s=144,ns=2,spd=0.5,hp=10,mcol=9,h=2,w=2,
-			ani={144,146}
-		}
-	}
+	en_typ=enemy_types()
 	cntr=0
 	invnrbl=0
 	starspd=2
@@ -88,14 +69,6 @@ function start_game()
 	bullt=0
 	endcounter=0
 	t=0
-	
-	ship={
-		x=60,
-		y=60,
-		sx=0,
-		sy=0,
-		s=2
-	}
 
 	flmspr=17
 	
@@ -113,6 +86,16 @@ end
 function set_start()
 	stars={}
 	planets={}
+	ship={
+		x=60,
+		y=60,
+		sx=0,
+		sy=0,
+		s=2,
+		w=1,
+		h=1
+	}
+	
 	txtoffset=40
 	scolors={1,13,7}
 	gen_stars(120)
@@ -130,13 +113,7 @@ function set_load()
 	shipsy=-1
 	flmspr=17
 	invnrbl=0
-	ship={
-		x=60,
-		y=128,
-		sx=0,
-		sy=-1,
-		s=2
-	}
+	ship.y=128
 	music(4,500)
 end
 
@@ -387,6 +364,7 @@ end
 function update_load()
 	if ship.y>60 then
 		space+=2
+		ship.y-=1
 		animate_ship()
 		animate_flame()
 		animate_stars()
@@ -418,17 +396,13 @@ function read_controls()
 		bullt=4
 		muzzle=4
 		sfx(0)
-		add(bullets,
-			{x=ship.x,y=ship.y-4,s=5,spd=5,dmg=1}
-		)
+		gen_bull(5,5,1)
 	end
 	bullt-=1
 	if btnp(🅾️) and bombs>0 then
 		muzzle=4
 		sfx(1)
-		add(bullets,
-			{x=ship.x,y=ship.y-4,s=12,spd=3,dmg=2}
-		)
+		gen_bull(12,3,2)
 		bombs-=1
 	end
 end
@@ -622,6 +596,14 @@ function gen_stars(n)
 	end
 end
 
+function gen_bull(s,spd,dmg)
+ add(bullets,
+		{x=ship.x,y=ship.y-4,
+		s=s,spd=spd,dmg=dmg,
+		w=1,h=1}
+	)	
+end
+
 function rnd_spr_pos(n)
 	local coord={}
 	for i=1,n do
@@ -647,14 +629,14 @@ end
 
 function col(a,b)
 	local a_l=a.x
-	local a_r=a.x+7
+	local a_r=a.x+(8*a.w)-1
 	local a_t=a.y
-	local a_b=a.y+7
+	local a_b=a.y+(8*a.h)-1
 
 	local b_l=b.x
-	local b_r=b.x+7
+	local b_r=b.x+(8*b.w)-1
 	local b_t=b.y
-	local b_b=b.y+7
+	local b_b=b.y+(8*b.h)-1
 	
 	if (a_t>b_b) then return false end
 	if (b_t>a_b) then return false end
@@ -761,14 +743,19 @@ function chk_ene_col()
 				end
 			end
 		end
-		
 		 
 		if invnrbl<=0 then
 			if col(e,ship) then
 				sfx(1)
 				lives-=1
 				invnrbl=100
-				del(enemies,e)
+				e.hp-=1
+				gen_sparks(ship.x+4,ship.y+4,10,6,5)
+				if e.hp<=0 then
+					explode(e.x,e.y,xplsn_pal[1])
+					sfx(2)
+				 del(enemies,e)
+				end 
 				if lives<=0 then
 					explode(ship.x+4,ship.y+4,xplsn_pal[2])
 					sfx(4)
@@ -799,6 +786,42 @@ function nxt_wave()
  else
 		mode="waveinfo"
 	end
+end
+-->8
+--enemy types
+function enemy_types()
+	return {
+		{
+			s=32,ns=8,spd=2,hp=1,mcol=3,
+			h=1,w=1,
+			ani={32,33,34,35,36,37,38,39}
+		},
+		{
+			s=84,ns=2,spd=1,hp=2,mcol=3,
+			h=1,w=1,
+			ani={84,85}
+		},
+		{
+			s=101,ns=4,spd=2,hp=2,mcol=3,
+			h=1,w=1,
+			ani={101,102,103,104}
+		},
+		{
+			s=76,ns=4,spd=2,hp=2,mcol=3,
+			h=1,w=1,
+			ani={76,77,78,79}
+		},
+		{
+			s=48,ns=8,spd=3,hp=2,mcol=3,
+			h=1,w=1,
+			ani={48,49,50,51,52,53,54,55}
+		},
+		{
+			s=144,ns=2,spd=0.5,hp=10,mcol=9,
+			h=2,w=2,
+			ani={144,146}
+		}
+	}
 end
 __gfx__
 00000000000220000002200000022000000990000009900000099000000990000009900000099000088088000880880000094000000940000009400000094000
