@@ -306,9 +306,8 @@ function update_game()
 	end
  
  if (lives<=0) then
+ 	music(-1,500)
  	mode="dead"
- 	ship.s=0
- 	flmspr=0
  	if endcounter<=0 then
 	 	mode="over" 
 		end
@@ -342,7 +341,6 @@ function update_over()
 		if btnp(❎) or btnp(🅾️) then
 			set_start()
 		 mode="start"
-		 music(2,500)
 		end
 	end
 end
@@ -443,9 +441,12 @@ function draw_game()
 	draw_xplsns()
 	draw_shwaves()
 	draw_prtcls()
-		
-	spr(ship.s,ship.x,ship.y)
-	spr(flmspr,ship.x,ship.y+8)
+	
+	if mode!="dead"
+		and mode!="over" then
+		spr(ship.s,ship.x,ship.y)
+		spr(flmspr,ship.x,ship.y+8)
+	end
 	
 	if muzzle>0 then
 		circfill(ship.x+3,ship.y-1,muzzle,7)
@@ -455,11 +456,14 @@ function draw_game()
 	print_score(43,0,6)
 	
 	--draw lives
-	for i=1,tlives do
-		if i<=lives then
-			spr(11,i*8)
+	for i=0,tlives-1 do
+		local x,y=i*8,flr(i/4)*8
+		if (x>24) x-=32
+		
+		if i<lives then
+			spr(11,x,y)
 		else
-			spr(10,i*8)
+			spr(10,x,y)
 		end	
 	end
 	
@@ -480,7 +484,8 @@ function draw_start()
 end
 
 function draw_over()
-	cls(2)
+	--cls(2)
+	draw_game()
 	print("game",56,40,8)
 	print("over",56,48,8)
 	print("press ❎/🅾️ to continue",18,80,blink())
