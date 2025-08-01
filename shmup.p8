@@ -6,11 +6,11 @@ function _init()
 	cls(0)
 	mode="start"	
 	blinkt=0
-	en_typ=enemy_types()
-	cntr=0
 	invnrbl=0
 	starspd=2
+	en_typ=enemy_types()
 	xplsn_pal=xplsns_palets()
+	waves=waves()
 	set_start()
 end
 
@@ -50,7 +50,7 @@ function _draw()
 		draw_win()
 	end
 	
-	if (debug) print(debug,0,0)
+	if (debug) print(debug,0,80)
 end
 
 function start_game()
@@ -91,9 +91,11 @@ function set_start()
 		sy=0,
 		s=2,
 		w=1,
-		h=1
+		h=1,
 	}
 	
+	atk_frq=45
+	pick_count=0
 	txtoffset=40
 	scolors={1,13,7}
 	gen_stars(120)
@@ -212,15 +214,19 @@ end
 
 function amimate_enemies()
 	for e in all(enemies) do	
-		e.y+=e.spd
+		--e.y+=e.spd
 		if (e.flsh>0) e.flsh-=1
 		
-		if flr(e.x+((e.w or 0)*2))>ship.x then
-			e.x-=0.7
-		elseif flr(e.x+((e.w or 0)*2))<ship.x then
-			e.x+=0.7
-		end
+		doenemy(e)
+--		if e.mission=="attack" then
+--			if flr(e.x+((e.w or 0)*2))>ship.x then
+--				e.x-=0.7
+--			elseif flr(e.x+((e.w or 0)*2))<ship.x then
+--				e.x+=0.7
+--			end
+--		end
 		
+		--animate spr
 		e.s=e.ani[flr(e.f)]
 		e.f+=0.4
 		if flr(e.f)>#e.ani then
@@ -278,6 +284,7 @@ function update_game()
 	animate_bullets()
 	chk_ene_col()
 	amimate_enemies()
+	pick_ene()
 	animate_xplsn()
 	animate_prtcls()
 	animate_shwaves()
@@ -338,9 +345,12 @@ function update_win()
 	animate_ship()
 	animate_muzzle()
 	animate_stars()
+	animate_planets()
 	animate_bullets()
 	if ship.y>0 then
 		ship.sy*=1.1
+		ship.sx=0
+		ship.s=2
 	end 
 	if prtcls_time<t then
 		local x=mid(16,flr(rnd(128)),112)
@@ -413,11 +423,7 @@ function update_waveinfo()
 	
 	if wave_time<t then
 		mode="game"
-		if wave<t_waves then
-			gen_wave(wave,wave)
-		else
-			gen_wave(1,wave)
-		end
+		gen_wave(waves[wave])
 	end
 end
 -->8
@@ -702,33 +708,14 @@ function gen_sparks(x,y,n,col,spd)
 end
 -->8
 --waves and enemies
-function gen_ene(t)
-	local typ=en_typ[t]
-	add(enemies,{
-		x=rnd(120),
-		y=0,
-		spd=typ.spd,
-		s=typ.s,
-		ini_s=typ.s,
-		hp=typ.hp,
-		mcol=typ.mcol,
-		flsh=0,
-		t=t,
-		ns=typ.ns,
-		w=typ.w,
-		h=typ.h,
-		f=1,
-		ani=typ.ani
-	})
-end
-
 function chk_ene_col()
 	for e in all(enemies) do
 		for b in all(bullets) do
 			if col(b,e) then
 				del(bullets,b)
-				gen_sparks(b.x+4,b.y+4,10,10,5)
-				e.flsh=5
+				gen_sparks(b.x+4,b.y,10,10,5)
+				gen_shwave(b.x+4,b.y,6,9,1.5)
+				e.flsh=12
 				e.hp-=b.dmg
 				if e.hp<=0 then
 					explode(e.x,e.y,xplsn_pal[1])
@@ -765,11 +752,38 @@ function chk_ene_col()
 	end
 end
 
-function gen_wave(n,t)
-	tp=t or 1
-	
-	for i=1,n do
-		gen_ene(tp)
+function gen_ene(t,x,y,wait)
+	local typ=en_typ[t]
+	add(enemies,{
+		x=x*1.5-28,
+		y=y-60,
+		spd=typ.spd,
+		ani=typ.ani,
+		s=typ.ani[1],
+		hp=typ.hp,
+		mcol=typ.mcol,
+		flsh=0,
+		t=t,
+		ns=typ.ns,
+		w=typ.w,
+		h=typ.h,
+		f=1,
+		mission="fly_in",
+		posx=x,
+		posy=y,
+		wait=wait
+	})
+end
+
+function gen_wave(w)
+	pick_count=#w*#w[1]
+	for y=1,#w do
+		for x=1,#w[y] do
+			if w[y][x]!=0 then
+				gen_ene(w[y][x],x*12-6,
+				y*12,x*2)
+			end
+		end
 	end
 end
 
@@ -784,6 +798,39 @@ function nxt_wave()
 		mode="waveinfo"
 	end
 end
+
+function doenemy(e)
+	if e.wait>0 then
+		e.wait-=1
+		return
+	end
+	if e.mission=="fly_in" then
+		e.y+=(e.posy-e.y)/6
+		e.x+=(e.posx-e.x)/9
+		if e.posy-e.y<0.2 then
+			e.y=e.posy
+			e.wait=e.x
+			e.mission="protect"
+		end
+	elseif e.mission=="protect" then
+	elseif e.mission=="attack" then
+		e.y+=e.spd
+	end
+end
+
+function pick_ene()
+	if (mode!="game") return
+	if t%atk_frq==0 
+	and pick_count>0 then
+--		pick_count-=1
+		local max_idx=#enemies
+		local min_idx=ceil(max_idx/10)*10-9
+		
+		local i=ceil(rnd(max_idx-min_idx))+min_idx
+		debug=min_idx.." "..max_idx.." "..i
+		enemies[i].mission="attack"
+	end
+end
 -->8
 --types
 function xplsns_palets()
@@ -795,42 +842,83 @@ end
 
 function enemy_types()
 	return {
-		--basic cyclops
+		--1 basic cyclops
 		{
-			s=32,ns=8,spd=2,hp=1,mcol=3,
+			ns=8,spd=1,hp=1,mcol=3,
 			h=1,w=1,
 			ani={32,33,34,35,36,35,34,33}
 		},
-		--bat
+		--2 bat
 		{
-			s=84,ns=2,spd=1,hp=2,mcol=3,
+			ns=2,spd=1,hp=2,mcol=2,
 			h=1,w=1,
 			ani={84,85}
 		},
-		--jellyfish
+		--3 jellyfish
 		{
-			s=101,ns=4,spd=2,hp=2,mcol=3,
+			ns=4,spd=1,hp=2,mcol=2,
 			h=1,w=1,
 			ani={101,102,103,104}
 		},
-		--spinning ship
+		--4 spinning ship
 		{
-			s=120,ns=4,spd=2,hp=2,mcol=3,
+			ns=4,spd=1,hp=2,mcol=13,
 			h=1,w=1,
 			ani={120,121,122,123}
 		},
-		--major cyclops
+		--5 major cyclops
 		{
-			s=48,ns=8,spd=3,hp=2,mcol=3,
+			ns=8,spd=1,hp=2,mcol=3,
 			h=1,w=1,
 			ani={48,49,50,51,52,51,50,49}
 		},
-		--boss
+		--6 boss
 		{
-			s=144,ns=2,spd=0.5,hp=10,mcol=9,
+			ns=2,spd=1,hp=10,mcol=9,
 			h=2,w=2,
 			ani={144,146}
 		}
+	}
+end
+
+function waves()
+	return {
+		{--1
+			{1,1,1,1,1,1,1,1,1,1},
+			{1,1,1,1,1,1,1,1,1,1},
+			{1,1,1,1,1,1,1,1,1,1},
+			{1,1,1,1,1,1,1,1,1,1}
+		},
+		{--2
+			{2,2,3,4,5,1,2,3,4,5},
+			{2,3,0,5,1,2,3,0,5,1},
+			{3,4,5,1,2,3,4,5,1,2},
+			{4,5,1,2,3,4,5,1,2,3}
+		},
+		{--3
+			{3,2,3,4,5,1,2,3,4,5},
+			{2,3,0,5,1,2,3,0,5,1},
+			{3,4,5,1,2,3,4,5,1,2},
+			{4,5,1,2,3,4,5,1,2,3}
+		},
+		{--4
+			{4,2,3,4,5,1,2,3,4,5},
+			{2,3,0,5,1,2,3,0,5,1},
+			{3,4,5,1,2,3,4,5,1,2},
+			{4,5,1,2,3,4,5,1,2,3}
+		},
+		{--5
+			{1,2,3,4,5,1,2,3,4,5},
+			{2,3,0,5,1,2,3,0,5,1},
+			{3,4,5,1,2,3,4,5,1,2},
+			{4,5,1,2,3,4,5,1,2,3}
+		},
+		{--6
+			{0,0,0,0,0,0,0,0,0,0},
+			{0,0,0,0,6,0,0,0,0,0},
+			{0,0,0,0,0,0,0,0,0,0},
+			{0,0,0,0,0,0,0,0,0,0}
+		},
 	}
 end
 __gfx__
