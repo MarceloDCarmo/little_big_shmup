@@ -16,7 +16,7 @@ end
 
 function _update()
 	blinkt+=0.25
-	t+=1
+	t=abs(t+1)
 	
 	if mode=="game" or
 		mode=="dead" then
@@ -84,18 +84,15 @@ function set_start()
 	t=0
 	stars={}
 	planets={}
-	ship={
-		x=60,
-		y=60,
-		sx=0,
-		sy=0,
-		s=2,
-		w=1,
-		h=1,
-	}
-	
+
+	ship=make_obj()
+	ship.x=60
+	ship.y=60
+	ship.sx=0
+	ship.sy=0
+	ship.s=2
+
 	atk_frq=45
-	pick_count=0
 	txtoffset=40
 	scolors={1,13,7}
 	gen_stars(120)
@@ -106,11 +103,6 @@ end
 function set_load()
 	starspd=3
 	space=0
-	shipspr=2
-	shipx=60
-	shipy=128
-	shipsx=0
-	shipsy=-1
 	flmspr=17
 	invnrbl=0
 	ship.y=128
@@ -129,8 +121,7 @@ end
 -->8
 --animation
 function animate_ship()
-	ship.x+=ship.sx
-	ship.y+=ship.sy
+	move(ship)
 	
 	if invnrbl>0 and invnrbl%2==0 then
 		ship.s=0
@@ -141,8 +132,7 @@ end
 function animate_bullets()
 	for b in all(bullets) do
 		if (b.y<0) del(bullets,b)
-		
-		b.y-=b.spd
+		move(b)
 		if b.s<12 then
 			b.s+=0.75
 			if b.s>=10 then
@@ -215,16 +205,12 @@ end
 function amimate_enemies()
 	for e in all(enemies) do	
 		--e.y+=e.spd
-		if (e.flsh>0) e.flsh-=1
-		
+		if (e.flash>0) e.flash-=1
+		if e.shake>0 then
+			e.shake-=1
+			e.y+=sin(t/4)
+		end
 		doenemy(e)
---		if e.mission=="attack" then
---			if flr(e.x+((e.w or 0)*2))>ship.x then
---				e.x-=0.7
---			elseif flr(e.x+((e.w or 0)*2))<ship.x then
---				e.x+=0.7
---			end
---		end
 		
 		--animate spr
 		e.s=e.ani[flr(e.f)]
@@ -233,8 +219,11 @@ function amimate_enemies()
 			e.f=1
 		end
 		
-		if e.y>128 then
-			del(enemies,e)
+		if e.mission!="fly_in" then
+			if e.y>128 or e.x>128
+			or e.x<0-(e.w*8) then
+				del(enemies,e)
+			end
 		end
 	end
 end
@@ -282,9 +271,10 @@ function update_game()
 	animate_ship()	
 	check_edges()
 	animate_bullets()
+	pick_ene()
+	
 	chk_ene_col()
 	amimate_enemies()
-	pick_ene()
 	animate_xplsn()
 	animate_prtcls()
 	animate_shwaves()
@@ -516,10 +506,10 @@ function draw_xplsns()
 	end
 end
 
-function draw_spr(t)
-	if t then
-		for i in all(t) do
-			if (i.flsh!=nil and i.flsh>0) then
+function draw_spr(obj)
+	if obj then
+		for i in all(obj) do
+			if (i.flash!=nil and i.flash>0) then
 				pal(i.mcol,7)
 			end
 			spr(i.s,i.x,i.y,i.h,i.w)
@@ -590,6 +580,26 @@ function draw_special()
 end
 -->8
 --tools
+function make_obj()
+	return {
+		x=0,
+		y=0,
+		flash=0,
+		s=0,
+		w=1,
+		h=1,
+		mcol=0,
+		sx=0,
+		sy=0,
+		shake=0
+	}
+end
+
+function move(obj)
+	obj.y+=obj.sy
+	obj.x+=obj.sx
+end
+
 function gen_stars(n)
 	for i=1,n do
 		add(stars,
@@ -602,11 +612,13 @@ function gen_stars(n)
 end
 
 function gen_bull(s,spd,dmg)
- add(bullets,
-		{x=ship.x,y=ship.y-4,
-		s=s,spd=spd,dmg=dmg,
-		w=1,h=1}
-	)	
+ local b=make_obj()
+ b.x=ship.x
+ b.y=ship.y-4
+ b.sy=-spd
+ b.s=s
+ b.dmg=dmg
+ add(bullets,b)	
 end
 
 function rnd_spr_pos(n)
@@ -715,7 +727,7 @@ function chk_ene_col()
 				del(bullets,b)
 				gen_sparks(b.x+4,b.y,10,10,5)
 				gen_shwave(b.x+4,b.y,6,9,1.5)
-				e.flsh=12
+				e.flash=12
 				e.hp-=b.dmg
 				if e.hp<=0 then
 					explode(e.x,e.y,xplsn_pal[1])
@@ -754,29 +766,28 @@ end
 
 function gen_ene(t,x,y,wait)
 	local typ=en_typ[t]
-	add(enemies,{
-		x=x*1.5-28,
-		y=y-60,
-		spd=typ.spd,
-		ani=typ.ani,
-		s=typ.ani[1],
-		hp=typ.hp,
-		mcol=typ.mcol,
-		flsh=0,
-		t=t,
-		ns=typ.ns,
-		w=typ.w,
-		h=typ.h,
-		f=1,
-		mission="fly_in",
-		posx=x,
-		posy=y,
-		wait=wait
-	})
+	local e=make_obj()
+	e.x=x*1.5-28
+	e.y=-60
+	e.sy=typ.spd
+	e.ani=typ.ani
+	e.s=typ.ani[1]
+	e.hp=typ.hp
+	e.mcol=typ.mcol
+	e.t=t
+	e.ns=typ.ns
+	e.w=typ.w
+	e.h=typ.h
+	e.f=1
+	e.mission="fly_in"
+	e.posx=x
+	e.posy=y
+	e.wait=wait
+	
+	add(enemies,e)
 end
 
 function gen_wave(w)
-	pick_count=#w*#w[1]
 	for y=1,#w do
 		for x=1,#w[y] do
 			if w[y][x]!=0 then
@@ -799,6 +810,20 @@ function nxt_wave()
 	end
 end
 
+function pick_ene()
+	if (mode!="game") return
+	if t%atk_frq==0 then
+		local min_idx=ceil(#enemies/10)*10-9
+		local i=ceil(rnd(#enemies-min_idx))+min_idx
+		local e=enemies[i]
+		if e.mission=="protect" then
+			e.mission="attack"
+			e.shake=60
+			e.wait=60
+		end
+	end
+end
+
 function doenemy(e)
 	if e.wait>0 then
 		e.wait-=1
@@ -807,28 +832,33 @@ function doenemy(e)
 	if e.mission=="fly_in" then
 		e.y+=(e.posy-e.y)/6
 		e.x+=(e.posx-e.x)/9
-		if e.posy-e.y<0.2 then
+		if e.posy-e.y<0.5 then
 			e.y=e.posy
-			e.wait=e.x
 			e.mission="protect"
 		end
 	elseif e.mission=="protect" then
 	elseif e.mission=="attack" then
-		e.y+=e.spd
-	end
-end
-
-function pick_ene()
-	if (mode!="game") return
-	if t%atk_frq==0 
-	and pick_count>0 then
---		pick_count-=1
-		local max_idx=#enemies
-		local min_idx=ceil(max_idx/10)*10-9
-		
-		local i=ceil(rnd(max_idx-min_idx))+min_idx
-		debug=min_idx.." "..max_idx.." "..i
-		enemies[i].mission="attack"
+		if e.t==1 then
+			e.x+=sin(t/30)
+			if(e.x<6)e.x+=1-(e.x/6)
+			if(e.x>114)e.x-=(e.x-114)/6
+		elseif e.t==2 then
+			if flr(e.x+((e.w or 0)*2))>ship.x then
+				e.x-=0.7
+			elseif flr(e.x+((e.w or 0)*2))<ship.x then
+				e.x+=0.7
+			end
+		elseif e.t==3 then
+			if e.sy!=0 and e.y>=ship.y then
+				if e.x<=ship.x then 
+					e.sx=e.sy
+				else
+					e.sx=-1*e.sy
+				end
+				e.sy=0
+			end
+		end
+		move(e)
 	end
 end
 -->8
@@ -844,19 +874,19 @@ function enemy_types()
 	return {
 		--1 basic cyclops
 		{
-			ns=8,spd=1,hp=1,mcol=3,
+			ns=8,spd=1.6,hp=2,mcol=3,
 			h=1,w=1,
 			ani={32,33,34,35,36,35,34,33}
 		},
 		--2 bat
 		{
-			ns=2,spd=1,hp=2,mcol=2,
+			ns=2,spd=2.6,hp=1,mcol=2,
 			h=1,w=1,
 			ani={84,85}
 		},
 		--3 jellyfish
 		{
-			ns=4,spd=1,hp=2,mcol=2,
+			ns=4,spd=1,hp=3,mcol=2,
 			h=1,w=1,
 			ani={101,102,103,104}
 		},
@@ -874,7 +904,7 @@ function enemy_types()
 		},
 		--6 boss
 		{
-			ns=2,spd=1,hp=10,mcol=9,
+			ns=2,spd=0,hp=10,mcol=9,
 			h=2,w=2,
 			ani={144,146}
 		}
@@ -883,6 +913,12 @@ end
 
 function waves()
 	return {
+		{--1 test
+			{1,1,1,1,1,1,1,1,1,1},
+			{1,1,1,1,1,1,1,1,1,1},
+			{1,1,1,1,1,1,1,1,1,1},
+			{3,3,3,3,3,3,3,3,3,3}
+		},
 		{--1
 			{1,1,1,1,1,1,1,1,1,1},
 			{1,1,1,1,1,1,1,1,1,1},
@@ -890,10 +926,10 @@ function waves()
 			{1,1,1,1,1,1,1,1,1,1}
 		},
 		{--2
-			{2,2,3,4,5,1,2,3,4,5},
-			{2,3,0,5,1,2,3,0,5,1},
-			{3,4,5,1,2,3,4,5,1,2},
-			{4,5,1,2,3,4,5,1,2,3}
+			{2,1,1,2,1,1,2,1,1,2},
+			{1,2,1,2,1,1,2,1,2,1},
+			{1,1,2,1,2,2,1,2,1,1},
+			{1,1,2,1,2,2,1,2,1,1}
 		},
 		{--3
 			{3,2,3,4,5,1,2,3,4,5},
@@ -962,9 +998,9 @@ __gfx__
 b063360b006336000063360000633600080550800805508008055080080550805d5245d505d24d500505505005d24d5022299222229999222229922222299222
 006336000063360000633600006336000c0000c007c007c007c00c7007c007c05005500505055050050000500505505020999902020000202099990202999920
 0006600000066000000660000006600000c7c7000007c0000077cc000007c000dd0000dd0dd00dd005dddd500dd00dd022000022022002202200002202200220
-00ff880000ff88000000000000000000200000020200002000000000000000003350053303500530000000000000000000000000000000000000000000000000
-0888888008888880000000000000000022000022220000220000000000000000330dd033030dd030005005000350053000000000000000000000000000000000
-06555560076665500000000000000000222222222222222200000000000000003b8dd8b3338dd833030dd030030dd03003e33e300e33e330033e333003e333e0
+00ff880000ff88000000000000000000200000020020020000000000000000003350053303500530000000000000000000000000000000000000000000000000
+0888888008888880000000000000000022000022022002200000000000000000330dd033030dd030005005000350053000000000000000000000000000000000
+06555560076665500000000000000000222002222220022200000000000000003b8dd8b3338dd833030dd030030dd03003e33e300e33e330033e333003e333e0
 6566665576555565000000000000000028222282282222820000000000000000032dd2300b2dd2b0038dd830338dd833e33e33e333e33e333e33e333e33e333e
 57655576555776550000000000000000288888822888888200000000000000003b3553b33b3553b3033dd3300b2dd2b033300333333003333330033333300333
 0655766005765550000000000000000028788782287887820000000000000000333dd333333dd33303b55b303b3553b3e3e3333bbe33333ebe3e333be3e3333b
