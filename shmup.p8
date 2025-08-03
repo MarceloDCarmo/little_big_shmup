@@ -11,6 +11,7 @@ function _init()
 	en_typ=enemy_types()
 	xplsn_pal=xplsns_palets()
 	waves=waves()
+	bull_typ=bull_types()
 	set_start()
 end
 
@@ -55,17 +56,17 @@ end
 
 function start_game()
 	score=0
-	wave=0
+	wave=1
 	wave_time=t+60
-	t_waves=6
+	t_waves=7
 	lives=4
-	tlives=4
+	tlives=8
 	mbombs=3
 	bombs=3
 	starspd=2
 	invnrbl=0
 	bullt=0
-	endcounter=0
+	endcounter=nil
 
 	flmspr=17
 	
@@ -120,6 +121,14 @@ function set_win()
 end
 -->8
 --animation
+function animate_spr(obj)
+	obj.s=obj.ani[flr(obj.f)]
+	obj.f+=obj.ani_s
+	if flr(obj.f)>#obj.ani then
+		obj.f=1
+	end
+end
+
 function animate_ship()
 	move(ship)
 	
@@ -133,17 +142,7 @@ function animate_bullets()
 	for b in all(bullets) do
 		if (b.y<0) del(bullets,b)
 		move(b)
-		if b.s<12 then
-			b.s+=0.75
-			if b.s>=10 then
-				b.s=5
-			end
-		else
-			b.s+=0.25
-			if b.s>=16 then
-				b.s=12
-			end
-		end
+		animate_spr(b)
 	end
 end
 
@@ -211,13 +210,7 @@ function amimate_enemies()
 			e.y+=sin(t/4)
 		end
 		doenemy(e)
-		
-		--animate spr
-		e.s=e.ani[flr(e.f)]
-		e.f+=0.4
-		if flr(e.f)>#e.ani then
-			e.f=1
-		end
+		animate_spr(e)
 		
 		if e.mission!="fly_in" then
 			if e.y>128 or e.x>128
@@ -271,9 +264,9 @@ function update_game()
 	animate_ship()	
 	check_edges()
 	animate_bullets()
-	pick_ene()
-	
+	pick_ctrl()
 	chk_ene_col()
+	chk_alive()
 	amimate_enemies()
 	animate_xplsn()
 	animate_prtcls()
@@ -395,7 +388,7 @@ function read_controls()
 		bullt=6
 		muzzle=4
 		sfx(0)
-		gen_bull(5,5,1)
+		gen_bull(1)
 	end
 	bullt-=1
 	if btnp(🅾️) and bombs>0
@@ -403,7 +396,7 @@ function read_controls()
 		bullt=6
 		muzzle=4
 		sfx(1)
-		gen_bull(12,3,2)
+		gen_bull(2)
 		bombs-=1
 	end
 end
@@ -414,6 +407,15 @@ function update_waveinfo()
 	if wave_time<t then
 		mode="game"
 		gen_wave(waves[wave])
+	end
+end
+
+function chk_alive()
+	if lives<=0
+	and endcounter==nil then
+		explode(ship.x+4,ship.y+4,xplsn_pal[2])
+		sfx(4)
+		endcounter=45
 	end
 end
 -->8
@@ -581,18 +583,22 @@ end
 -->8
 --tools
 function make_obj()
-	return {
+	local obj={
 		x=0,
 		y=0,
 		flash=0,
-		s=0,
 		w=1,
 		h=1,
 		mcol=0,
 		sx=0,
 		sy=0,
-		shake=0
+		shake=0,
+		ani_s=0.4,
+		f=1,
+		ani={1},
 	}
+	obj.s=obj.ani[obj.f]
+	return obj
 end
 
 function move(obj)
@@ -611,13 +617,14 @@ function gen_stars(n)
 	end
 end
 
-function gen_bull(s,spd,dmg)
+function gen_bull(t)
  local b=make_obj()
+ local typ=bull_typ[t]
  b.x=ship.x
  b.y=ship.y-4
- b.sy=-spd
- b.s=s
- b.dmg=dmg
+ b.sy=typ.spd
+ b.dmg=typ.dmg
+ b.ani=typ.ani
  add(bullets,b)	
 end
 
@@ -730,38 +737,41 @@ function chk_ene_col()
 				e.flash=12
 				e.hp-=b.dmg
 				if e.hp<=0 then
-					explode(e.x,e.y,xplsn_pal[1])
-					sfx(2)
-				 del(enemies,e) 
-					score+=1
-					if score%50==0 and lives<tlives then
-						sfx(3)
-						lives+=1
-					end
+					kill_ene(e)
 				end
 			end
 		end
 		 
 		if invnrbl<=0 then
 			if col(e,ship) then
-				sfx(1)
-				lives-=1
-				invnrbl=100
-				e.hp-=1
-				gen_sparks(ship.x+4,ship.y+4,10,6,5)
+				hit_ship()
 				if e.hp<=0 then
-					explode(e.x,e.y,xplsn_pal[1])
-					sfx(2)
-				 del(enemies,e)
+					kill_ene(e)
 				end 
-				if lives<=0 then
-					explode(ship.x+4,ship.y+4,xplsn_pal[2])
-					sfx(4)
-					endcounter=45
-				end
 			end
 		end
 	end
+end
+
+function kill_ene(e)
+	explode(e.x,e.y,xplsn_pal[1])
+	sfx(2)
+ del(enemies,e) 
+	if e.mission=="attack"
+	and e.shake>0 then
+		score+=2
+	else
+		score+=1
+	end
+	if(rnd(10)>3)	pick_ene()
+end
+
+function hit_ship()
+	sfx(1)
+	lives-=1
+	invnrbl=100
+	e.hp-=1
+	gen_sparks(ship.x+4,ship.y+4,10,6,5)
 end
 
 function gen_ene(t,x,y,wait)
@@ -792,7 +802,7 @@ function gen_wave(w)
 		for x=1,#w[y] do
 			if w[y][x]!=0 then
 				gen_ene(w[y][x],x*12-6,
-				y*12,x*2)
+				y*12-2,x*2)
 			end
 		end
 	end
@@ -810,17 +820,22 @@ function nxt_wave()
 	end
 end
 
-function pick_ene()
+function pick_ctrl()
 	if (mode!="game") return
 	if t%atk_frq==0 then
-		local min_idx=ceil(#enemies/10)*10-9
-		local i=ceil(rnd(#enemies-min_idx))+min_idx
-		local e=enemies[i]
-		if e.mission=="protect" then
-			e.mission="attack"
-			e.shake=60
-			e.wait=60
-		end
+		pick_ene()
+	end
+end
+
+function pick_ene()
+	if(#enemies==0) return
+	local min_idx=ceil(#enemies/10)*10-9
+	local i=ceil(rnd(#enemies-min_idx))+min_idx
+	local e=enemies[i]
+	if e.mission=="protect" then
+		e.mission="attack"
+		e.shake=60
+		e.wait=60
 	end
 end
 
@@ -857,6 +872,8 @@ function doenemy(e)
 				end
 				e.sy=0
 			end
+		elseif e.t==6 then
+			e.x+=(ship.x-e.x)/30
 		end
 		move(e)
 	end
@@ -867,6 +884,17 @@ function xplsns_palets()
 	return {
 		{7,9,10,8,2,5}, --enemies
 		{7,6,12,13,13,1} --ship
+	}
+end
+
+function bull_types()
+	return {
+		--normal
+		{dmg=1,spd=-5,ani_s=0.75,
+		ani={5,6,7,8,9}},
+		--missile
+		{dmg=3,spd=-3,ani_s=0.75,
+		ani={12,13,14,15}}
 	}
 end
 
@@ -950,8 +978,8 @@ function waves()
 			{4,5,1,2,3,4,5,1,2,3}
 		},
 		{--6
-			{0,0,0,0,0,0,0,0,0,0},
 			{0,0,0,0,6,0,0,0,0,0},
+			{0,0,0,0,0,0,0,0,0,0},
 			{0,0,0,0,0,0,0,0,0,0},
 			{0,0,0,0,0,0,0,0,0,0}
 		},
